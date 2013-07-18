@@ -9,31 +9,7 @@ namespace Akkroo;
 
 use Exception;
 
-/**
- * PHPMongoQuery implements MongoDB queries in PHP, allowing developers to query
- * a 'document' (an array containing data) against a Mongo query object,
- * returning a boolean value for pass or fail
- */
 abstract class PHPMongoQuery {
-	
-	/**
-	 * Execute a mongo query on a set of documents and return the documents that pass the query
-	 * 
-	 * @param array $query		A boolean value or an array defining a query
-	 * @param array $documents	The document to query
-	 * @param array $options	Any options:
-	 *	'unknownOperatorCallback' - a callback to be called if an operator can't be found.  The function definition is function($operator, $operatorValue, $field, $document). return true or false. 
-	 * @return boolean
-	 * @throws Exception
-	 */
-	public static function find(array $query, array $documents, array $options = array()) {
-		if(empty($documents) || empty($query)) return $documents;
-		$ret = array();
-		foreach ($documents as $doc) {
-			if(static::_executeQuery($query, $documents, $options)) $ret[] = $doc;
-		}
-		return $ret;
-	}
 	
 	/**
 	 * Execute a Mongo query on a document
@@ -45,10 +21,10 @@ abstract class PHPMongoQuery {
 	 * @return boolean
 	 * @throws Exception
 	 */
-	public static function executeQuery($query, array &$document, array $options = array()) {
+	public static function executeQuery($query, array &$document, array $options = []) {
 		if(DEBUG) {
 			$logger = newLogger('PHPMongoQuery');
-			$logger->debug('executeQuery called', array('query' => $query, 'document' => $document));
+			$logger->debug('executeQuery called', ['query' => $query, 'document' => $document]);
 		}
 		
 		if(!is_array($query)) return (bool)$query;
@@ -73,11 +49,11 @@ abstract class PHPMongoQuery {
 			throw new Exception($logicalOperator.' requires nonempty array');
 		if(DEBUG) {
 			$logger = newLogger('PHPMongoQuery');
-			$logger->debug('_executeQuery called', array('query' => $query, 'document' => $document, 'logicalOperator' => $logicalOperator));
+			$logger->debug('_executeQuery called', ['query' => $query, 'document' => $document, 'logicalOperator' => $logicalOperator]);
 		}
 		foreach($query as $k => $q) {
 			$pass = true;
-			if(substr($k, 0, 1) === '$') {
+			if(is_string($k) && substr($k, 0, 1) === '$') {
 				// key is an operator at this level, except $not, which can be at any level
 				if($k === '$not')
 					$pass = !self::_executeQuery($q, $document, $options);
@@ -106,7 +82,7 @@ abstract class PHPMongoQuery {
 					if($pass) return false;
 					break;
 				default:
-					$logger->warning('_executeQuery could not find logical operator', array('query' => $query, 'document' => $document, 'logicalOperator' => $logicalOperator));
+					$logger->warning('_executeQuery could not find logical operator', ['query' => $query, 'document' => $document, 'logicalOperator' => $logicalOperator]);
 					return false;
 			}
 		}
@@ -118,7 +94,7 @@ abstract class PHPMongoQuery {
 			case '$nor': // all failed, query succeeded
 				return true;
 			default:
-				$logger->warning('_executeQuery could not find logical operator', array('query' => $query, 'document' => $document, 'logicalOperator' => $logicalOperator));
+				$logger->warning('_executeQuery could not find logical operator', ['query' => $query, 'document' => $document, 'logicalOperator' => $logicalOperator]);
 				return false;
 		}
 		throw new Exception('Reached end of _executeQuery without returning a value');
@@ -136,7 +112,7 @@ abstract class PHPMongoQuery {
 	private static function _executeQueryOnElement(array $query, $element, array &$document) {
 		if(DEBUG) {
 			$logger = newLogger('PHPMongoQuery');
-			$logger->debug('executeQueryOnElement called', array('query' => $query, 'element' => $element, 'document' => $document));
+			$logger->debug('executeQueryOnElement called', ['query' => $query, 'element' => $element, 'document' => $document]);
 		}
 		// iterate through query operators
 		foreach($query as $op => $opVal) {
@@ -156,10 +132,10 @@ abstract class PHPMongoQuery {
 	 * @return boolean				The result
 	 * @throws Exception			Exceptions on invalid operators, invalid unknown operator callback, and invalid operator values
 	 */
-	private static function _executeOperatorOnElement($operator, $operatorValue, $element, array &$document, array $options = array()) {
+	private static function _executeOperatorOnElement($operator, $operatorValue, $element, array &$document, array $options = []) {
 		if(DEBUG) {
 			$logger = newLogger('PHPMongoQuery');
-			$logger->debug('executeOperatorOnElement called', array('operator' => $operator, 'operatorValue' => $operatorValue, 'element' => $element, 'document' => $document));
+			$logger->debug('executeOperatorOnElement called', ['operator' => $operator, 'operatorValue' => $operatorValue, 'element' => $element, 'document' => $document]);
 		}
 		
 		if($operator === '$not') {
@@ -192,11 +168,14 @@ abstract class PHPMongoQuery {
 			case '$e':
 				if(!$exists) return false;
 				if(is_array($v)) return in_array($operatorValue, $v);
+				if(is_string($operatorValue) && preg_match('/^\/(.*?)\/([a-z]*)$/i', $operatorValue, $matches))
+					return preg_match('/'.$matches[1].'/'.$matches[2], $v);
 				return $operatorValue === $v;
 			case '$in':
 				if(!$exists) return false;
 				if(!is_array($operatorValue)) throw new Exception('$in requires array');
 				if(count($operatorValue) === 0) return false;
+				if(is_array($v)) return count(array_diff($v, $operatorValue)) < count($operatorValue);
 				return in_array($v, $operatorValue);
 			case '$lt':		return $exists && $v < $operatorValue;
 			case '$lte':	return $exists && $v <= $operatorValue;
@@ -251,16 +230,20 @@ abstract class PHPMongoQuery {
 	/**
 	 * Get the fields this query depends on
 	 * 
-	 * @param array query	The query to analyse
+	 * @param array		$query		The query to analyse
+	 * @param callable	$callable	A callback function on every field, signature function($field, $fieldQuery)
 	 * @return array		An array of fields this query depends on
 	 */
-	public static function getDependentFields(array $query) {
+	public static function getDependentFields(array $query, $assoc = false) {
 	   $fields = [];
 	   foreach($query as $k => $v) {
-		   if(is_array($v))
-			   $fields = array_merge($fields, static::getDependentFields($v));
-		   if(is_int($k) || $k[0] === '$') continue;
-		   $fields[] = $k;
+			if(is_array($v))
+				$fields = array_merge($fields, static::getDependentFields($v));
+			if(is_int($k) || $k[0] === '$') continue;
+			if($assoc)
+				$fields[$k] = $v;
+			else
+				$fields[] = $k;
 	   }
 	   return array_unique($fields);
 	}
