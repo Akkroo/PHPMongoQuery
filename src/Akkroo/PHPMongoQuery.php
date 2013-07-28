@@ -77,7 +77,7 @@ abstract class PHPMongoQuery {
 		}
 		foreach($query as $k => $q) {
 			$pass = true;
-			if(substr($k, 0, 1) === '$') {
+			if(is_string($k) && substr($k, 0, 1) === '$') {
 				// key is an operator at this level, except $not, which can be at any level
 				if($k === '$not')
 					$pass = !self::_executeQuery($q, $document, $options);
@@ -192,11 +192,14 @@ abstract class PHPMongoQuery {
 			case '$e':
 				if(!$exists) return false;
 				if(is_array($v)) return in_array($operatorValue, $v);
+				if(is_string($operatorValue) && preg_match('/^\/(.*?)\/([a-z]*)$/i', $operatorValue, $matches))
+					return preg_match('/'.$matches[1].'/'.$matches[2], $v);
 				return $operatorValue === $v;
 			case '$in':
 				if(!$exists) return false;
 				if(!is_array($operatorValue)) throw new Exception('$in requires array');
 				if(count($operatorValue) === 0) return false;
+				if(is_array($v)) return count(array_diff($v, $operatorValue)) < count($operatorValue);
 				return in_array($v, $operatorValue);
 			case '$lt':		return $exists && $v < $operatorValue;
 			case '$lte':	return $exists && $v <= $operatorValue;
@@ -207,6 +210,7 @@ abstract class PHPMongoQuery {
 				if(!$exists) return true;
 				if(!is_array($operatorValue)) throw new Exception('$nin requires array');
 				if(count($operatorValue) === 0) return true;
+				if(is_array($v)) return !(count(array_diff($v, $operatorValue)) < count($operatorValue));
 				return !in_array($v, $operatorValue);
 			
 			case '$exists':	return ($operatorValue && $exists) || (!$operatorValue && !$exists);
