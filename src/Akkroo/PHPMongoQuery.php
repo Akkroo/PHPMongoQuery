@@ -27,7 +27,7 @@ abstract class PHPMongoQuery {
 	 * @throws Exception
 	 */
 	public static function find(array $query, array $documents, array $options = array()) {
-		if(empty($documents) || empty($query)) return $documents;
+		if(empty($documents) || empty($query)) return array();
 		$ret = array();
 		foreach ($documents as $doc) {
 			if(static::_executeQuery($query, $documents, $options)) $ret[] = $doc;
