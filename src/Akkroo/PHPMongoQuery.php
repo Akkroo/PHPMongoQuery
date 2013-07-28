@@ -136,13 +136,29 @@ abstract class PHPMongoQuery {
 	private static function _executeQueryOnElement(array $query, $element, array &$document) {
 		if(DEBUG) {
 			$logger = newLogger('PHPMongoQuery');
-			$logger->debug('executeQueryOnElement called', array('query' => $query, 'element' => $element, 'document' => $document));
+			$logger->debug('_executeQueryOnElement called', array('query' => $query, 'element' => $element, 'document' => $document));
 		}
 		// iterate through query operators
 		foreach($query as $op => $opVal) {
 			if(!self::_executeOperatorOnElement($op, $opVal, $element, $document)) return false;
 		}
 		return true;
+	}
+	
+	/**
+	 * Check if an operator is equal to a value
+	 * 
+	 * Equality includes direct equality, regular expression match, and checking if the operator value is one of the values in an array value
+	 * 
+	 * @param mixed $v
+	 * @param mixed $operatorValue
+	 * @return boolean
+	 */
+	private static function _isEqual($v, $operatorValue) {
+		if(is_array($v)) return in_array($operatorValue, $v);
+		if(is_string($operatorValue) && preg_match('/^\/(.*?)\/([a-z]*)$/i', $operatorValue, $matches))
+			return (bool)preg_match('/'.$matches[1].'/'.$matches[2], $v);
+		return $operatorValue === $v;
 	}
 	
 	/**
@@ -159,7 +175,7 @@ abstract class PHPMongoQuery {
 	private static function _executeOperatorOnElement($operator, $operatorValue, $element, array &$document, array $options = array()) {
 		if(DEBUG) {
 			$logger = newLogger('PHPMongoQuery');
-			$logger->debug('executeOperatorOnElement called', array('operator' => $operator, 'operatorValue' => $operatorValue, 'element' => $element, 'document' => $document));
+			$logger->debug('_executeOperatorOnElement called', array('operator' => $operator, 'operatorValue' => $operatorValue, 'element' => $element, 'document' => $document));
 		}
 		
 		if($operator === '$not') {
@@ -170,6 +186,21 @@ abstract class PHPMongoQuery {
 		$v =& $document;
 		$exists = true;
 		foreach($elementSpecifier as $es) {
+			if(empty($v)) {
+				$exists = false;
+				break;
+			}
+			if(isset($v[0])) {
+				// value from document is an array, so we need to iterate through array and test the query on all elements of the array
+				// if any elements match, then return true
+				$newSpecifier = implode('.', array_slice($elementSpecifier, $index));
+				foreach($v as $item) {
+					if(self::_executeOperatorOnElement($operator, $operatorValue, $newSpecifier, $item, $options)) {
+						return true;
+					}
+				}
+				return false;
+			}
 			if(isset($v[$es]))
 				$v =& $v[$es];
 			else {
@@ -191,10 +222,7 @@ abstract class PHPMongoQuery {
 				return count(array_intersect($v, $operatorValue)) === count($operatorValue);
 			case '$e':
 				if(!$exists) return false;
-				if(is_array($v)) return in_array($operatorValue, $v);
-				if(is_string($operatorValue) && preg_match('/^\/(.*?)\/([a-z]*)$/i', $operatorValue, $matches))
-					return preg_match('/'.$matches[1].'/'.$matches[2], $v);
-				return $operatorValue === $v;
+				return self::_isEqual($v, $operatorValue);
 			case '$in':
 				if(!$exists) return false;
 				if(!is_array($operatorValue)) throw new Exception('$in requires array');
@@ -205,7 +233,7 @@ abstract class PHPMongoQuery {
 			case '$lte':	return $exists && $v <= $operatorValue;
 			case '$gt':		return $exists && $v > $operatorValue;
 			case '$gte':	return $exists && $v >= $operatorValue;
-			case '$ne':		return (!$exists && $operatorValue === null) || ($exists && $v !== $operatorValue);
+			case '$ne':		return (!$exists && $operatorValue !== null) || ($exists && self::_isEqual($v, $operatorValue));
 			case '$nin':
 				if(!$exists) return true;
 				if(!is_array($operatorValue)) throw new Exception('$nin requires array');
