@@ -48,9 +48,13 @@ class PHPMongoQueryTest extends \PHPUnit_Framework_TestCase {
 	 * @covers Akkroo\PHPMongoQuery::executeQuery
 	 */
 	public function testExecuteQuery() {
-		$queries = json_decode(file_get_contents(__DIR__.'/TestQueries/JSMongoQueryTestQueries.json'), true);
+		$queries = json_decode(file_get_contents(__DIR__.'/TestQueries/MongoQueryTestQueries.json'), true);
+		$logger = new \Monolog\Logger('MongoQueryTests');
+		$logger->pushHandler(new \Monolog\Handler\StreamHandler('php://stdout'));
 		
 		foreach($queries as $q) {
+			//  uncomment to log to stdout
+//			$q['options'] += ['debug' => true, 'logger' => $logger];
 			$this->assertEquals($q['result'], PHPMongoQuery::executeQuery($q['query'], $q['document'], $q['options']), $q['description']);
 		}
 	}
