@@ -5,6 +5,7 @@
 	"homepage": "https://github.com/Akkroo/PHPMongoQuery",
 	"type": "library",
 	"license": "MIT",
+	"version":"1.0.0",
 	"authors": [
 	{
 		"name": "Nick Brook",
