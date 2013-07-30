@@ -22,6 +22,8 @@ abstract class PHPMongoQuery {
 	 * @param array $query		A boolean value or an array defining a query
 	 * @param array $documents	The document to query
 	 * @param array $options	Any options:
+	 *	'debug' - boolean - debug mode, verbose logging
+	 *	'logger' - \Psr\LoggerInterface - A logger instance that implements {@link https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-3-logger-interface.md#3-psrlogloggerinterface PSR-3}
 	 *	'unknownOperatorCallback' - a callback to be called if an operator can't be found.  The function definition is function($operator, $operatorValue, $field, $document). return true or false. 
 	 * @return boolean
 	 * @throws Exception
@@ -43,6 +45,8 @@ abstract class PHPMongoQuery {
 	 * @param mixed $query		A boolean value or an array defining a query
 	 * @param array $document	The document to query
 	 * @param array $options	Any options:
+	 *	'debug' - boolean - debug mode, verbose logging
+	 *	'logger' - \Psr\LoggerInterface - A logger instance that implements {@link https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-3-logger-interface.md#3-psrlogloggerinterface PSR-3}
 	 *	'unknownOperatorCallback' - a callback to be called if an operator can't be found.  The function definition is function($operator, $operatorValue, $field, $document). return true or false. 
 	 * @return boolean
 	 * @throws Exception
