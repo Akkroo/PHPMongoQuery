@@ -81,6 +81,15 @@ abstract class PHPMongoQuery {
 		if($options['_debug'] && $options['_shouldLog']) {
 			$options['logger']->debug('_executeQuery called', array('query' => $query, 'document' => $document, 'logicalOperator' => $logicalOperator));
 		}
+
+		// for the purpose of querying documents, we are going to specify that an indexed array is an array which
+		// only contains numeric keys, is sequential, the first key is zero, and not empty. This will allow us
+		// to detect an array of key->vals that have numeric IDs vs an array of queries (where keys were not specified)
+		$isIndexedArray = function($a) {
+			return (!empty($a) && array_keys($a) === range(0, count($a) - 1));
+		};
+		$queryIsIndexedArray = $isIndexedArray($query);
+
 		foreach($query as $k => $q) {
 			$pass = true;
 			if(is_string($k) && substr($k, 0, 1) === '$') {
@@ -90,7 +99,7 @@ abstract class PHPMongoQuery {
 				else
 					$pass = self::_executeQuery($q, $document, $options, $k);
 			} else if($logicalOperator === '$and') { // special case for $and
-				if(is_int($k)) { // $q is an array of query objects
+				if($queryIsIndexedArray) { // $q is an array of query objects
 					$pass = self::_executeQuery($q, $document, $options);
 				} else if(is_array($q)) { // query is array, run all queries on field.  All queries must match. e.g { 'age': { $gt: 24, $lt: 52 } }
 					$pass = self::_executeQueryOnElement($q, $k, $document, $options);

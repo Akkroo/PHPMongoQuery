@@ -40,8 +40,9 @@ class PHPMongoQueryTest extends \PHPUnit_Framework_TestCase {
 			'b' => 'bar'
 		);
 		$expectedResult = array($documents[0]);
-		
-		$this->assertEquals($expectedResult, PHPMongoQuery::find($query, $documents));
+		$result = PHPMongoQuery::find($query, $documents);
+
+		$this->assertEquals($expectedResult, $result);
 	}
 
 	/**
@@ -52,9 +53,10 @@ class PHPMongoQueryTest extends \PHPUnit_Framework_TestCase {
 		$logger = new \Monolog\Logger('MongoQueryTests');
 		$logger->pushHandler(new \Monolog\Handler\StreamHandler('php://stdout'));
 		
-		foreach($queries as $q) {
+		foreach($queries as $n => $q) {
 			//  uncomment to log to stdout
-//			$q['options'] += ['debug' => true, 'logger' => $logger];
+			// $logger->debug('Running test ('.$n.') for "'.$q['description'].'"');
+			// $q['options'] += ['debug' => true, 'logger' => $logger];
 			$this->assertEquals($q['result'], PHPMongoQuery::executeQuery($q['query'], $q['document'], $q['options']), $q['description']);
 		}
 	}
