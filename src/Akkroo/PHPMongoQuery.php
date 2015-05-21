@@ -171,6 +171,9 @@ abstract class PHPMongoQuery {
 	 * @return boolean
 	 */
 	private static function _isEqual($v, $operatorValue) {
+		if (is_array($v) && is_array($operatorValue)) {
+			return $v == $operatorValue;
+		}
 		if(is_array($v)) return in_array($operatorValue, $v);
 		if(is_string($operatorValue) && preg_match('/^\/(.*?)\/([a-z]*)$/i', $operatorValue, $matches))
 			return (bool)preg_match('/'.$matches[1].'/'.$matches[2], $v);
