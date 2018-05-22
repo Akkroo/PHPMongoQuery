@@ -34,7 +34,7 @@ abstract class PHPMongoQuery {
 		$options['_shouldLog'] = !empty($options['logger']) && $options['logger'] instanceof \Psr\Log\LoggerInterface;
 		$options['_debug'] = !empty($options['debug']);
 		foreach ($documents as $doc) {
-			if(static::_executeQuery($query, $documents, $options)) $ret[] = $doc;
+			if(static::_executeQuery($query, $doc, $options)) $ret[] = $doc;
 		}
 		return $ret;
 	}
