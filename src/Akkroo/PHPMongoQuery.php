@@ -245,6 +245,7 @@ abstract class PHPMongoQuery {
 				if(!$exists) return false;
 				if(!is_array($operatorValue)) throw new Exception('$in requires array');
 				if(count($operatorValue) === 0) return false;
+				var_dump($v);die();
 				if(is_array($v)) return count(array_intersect($v, $operatorValue)) > 0;
 				return in_array($v, $operatorValue);
 			case '$lt':		return $exists && $v < $operatorValue;
