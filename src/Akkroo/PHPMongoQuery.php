@@ -291,7 +291,7 @@ abstract class PHPMongoQuery {
 		foreach($query as $k => $v) {
 			if(is_array($v))
 				$query[$k] = self::appendFieldSpecifier($v, $append);
-			if($k[0] === '$') continue;
+			if(!isset($k[0]) || $k[0] === '$') continue;
 			$query[$k.'.'.$append] = $query[$k];
 			unset($query[$k]);
 		}
